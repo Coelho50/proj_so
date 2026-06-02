@@ -6,6 +6,7 @@
 #include "../include/main.h"
 #include "../include/render.h"
 #include "../include/input.h"
+#include "../include/entities.h"
 
 GameState game;
 
@@ -61,6 +62,7 @@ void cleanup_game(void) {
 int main(void) {
     int choice = 1;
     pthread_t input_tid;
+    pthread_t reloader_tid;
     
     printf("Selecione a dificuldade:\n1 - Facil\n2 - Medio\n3 - Dificil\nEscolha: ");
     if (scanf("%d", &choice) != 1) {
@@ -76,6 +78,15 @@ int main(void) {
         fprintf(stderr, "Erro ao criar a thread de input.\n");
         return 1;
     }
+
+    if (pthread_create(&reloader_tid, NULL, reloader_thread_fn, NULL) != 0) {
+        game.game_over = true;
+        pthread_join(input_tid, NULL);
+        cleanup_render();
+        cleanup_game();
+        fprintf(stderr, "Erro ao criar a thread do carregador.\n");
+        return 1;
+    }
     
     while (!game.game_over) {
         check_victory_conditions();
@@ -84,6 +95,7 @@ int main(void) {
     }
     
     pthread_join(input_tid, NULL);
+    pthread_join(reloader_tid, NULL);
     cleanup_render();
     
     if (game.player_won) {
