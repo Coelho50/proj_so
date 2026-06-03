@@ -29,6 +29,12 @@ void draw_game(void) {
     mvprintw(2, 2, "Naves Abatidas: %d / %d", game.aliens_destroyed, game.total_aliens);
     mvprintw(3, 2, "Naves Escaparam: %d", game.aliens_escaped);
 
+    for (int i = 0; i < MAX_ALIENS_CONCURRENT; i++) {
+        if (game.pool_aliens[i].active) {
+            mvaddch(game.pool_aliens[i].pos.y, game.pool_aliens[i].pos.x, 'W');
+        }
+    }
+
     char angle_char = '|';
     if (game.current_angle == ANGLE_HORIZ_LEFT) angle_char = '_';
     else if (game.current_angle == ANGLE_DIAG_LEFT) angle_char = '\\';

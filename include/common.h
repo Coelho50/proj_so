@@ -7,6 +7,7 @@
 
 #define SCREEN_WIDTH  80
 #define SCREEN_HEIGHT 24
+#define MAX_ALIENS_CONCURRENT 20
 
 typedef enum {
     ANGLE_HORIZ_LEFT,
@@ -50,6 +51,8 @@ typedef struct {
     int total_aliens;
     unsigned int reload_delay_ms;
     unsigned int alien_speed_ms;
+
+    Alien pool_aliens[MAX_ALIENS_CONCURRENT];
 
     pthread_mutex_t state_mutex;
     sem_t battery_sem;
