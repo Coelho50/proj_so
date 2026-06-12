@@ -33,6 +33,21 @@ void* input_thread_fn(void* arg) {
         } else if (ch == ' ') {
             if (game.rockets_in_battery > 0) {
                 game.rockets_in_battery--;
+                
+                // aloca espaço para passar as coordenadas iniciais para a thread
+                Rocket* novo_foguete = malloc(sizeof(Rocket));
+                novo_foguete->pos.x = SCREEN_WIDTH / 2;
+                novo_foguete->pos.y = SCREEN_HEIGHT - 3;
+                novo_foguete->trajectory = game.current_angle;
+                
+                pthread_t rocket_tid;
+                if (pthread_create(&rocket_tid, NULL, rocket_thread_fn, novo_foguete) == 0) {
+                    pthread_detach(rocket_tid); 
+                } else {
+                    free(novo_foguete);
+                }
+            }
+        }
             }
         } else if (ch == 'q' || ch == 'Q') {
             game.game_over = true;

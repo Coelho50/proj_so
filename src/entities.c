@@ -65,3 +65,67 @@ void* alien_thread_fn(void* arg) {
 
     return NULL;
 }
+
+
+
+void* rocket_thread_fn(void* arg) {
+    // recebe os dados iniciais do tiro
+    Rocket* r = (Rocket*)arg;
+    int x = r->pos.x;
+    int y = r->pos.y;
+    CannonAngle angle = r->trajectory;
+    free(r);
+
+    while (1) {
+        usleep(20000); // velocidade do foguete
+
+        pthread_mutex_lock(&game.state_mutex);
+
+        if (game.game_over) {
+            pthread_mutex_unlock(&game.state_mutex);
+            break;
+        }
+
+        // posição baseada no ângulo do canhão
+        if (angle == ANGLE_VERTICAL) {
+            y--;
+        } else if (angle == ANGLE_DIAG_LEFT) {
+            y--; x--;
+        } else if (angle == ANGLE_DIAG_RIGHT) {
+            y--; x++;
+        } else if (angle == ANGLE_HORIZ_LEFT) {
+            x--;
+        } else if (angle == ANGLE_HORIZ_RIGHT) {
+            x++;
+        }
+
+        // verifica se saiu da tela
+        if (y <= 0 || x <= 0 || x >= SCREEN_WIDTH - 1) {
+            pthread_mutex_unlock(&game.state_mutex);
+            break;
+        }
+
+        // verifica colisão com as naves ativas
+        bool hit = false;
+        for (int i = 0; i < MAX_ALIENS_CONCURRENT; i++) {
+            if (game.pool_aliens[i].active) {
+                if (game.pool_aliens[i].pos.x == x && 
+                   (game.pool_aliens[i].pos.y == y || game.pool_aliens[i].pos.y == y + 1)) {
+                    
+                    game.pool_aliens[i].active = false; // destrói a nave
+                    game.aliens_destroyed++;            // pontua
+                    hit = true;
+                    break; // um foguete destrói apenas uma nave
+                }
+            }
+        }
+
+        pthread_mutex_unlock(&game.state_mutex);
+
+        if (hit) {
+            break;
+        }
+    }
+
+    return NULL;
+}
