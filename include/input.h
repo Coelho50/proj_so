@@ -1,6 +1,6 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-void* input_thread_fn(void* arg);
+void process_input(int ch);
 
 #endif // INPUT_H

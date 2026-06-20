@@ -3,11 +3,11 @@
 
 #include <pthread.h>
 #include <stdbool.h>
-#include <semaphore.h>
 
 #define SCREEN_WIDTH  80
 #define SCREEN_HEIGHT 24
 #define MAX_ALIENS_CONCURRENT 20
+#define MAX_ROCKETS 64
 
 typedef enum {
     ANGLE_HORIZ_LEFT,
@@ -26,6 +26,7 @@ typedef struct {
     int id;
     Position pos;
     bool active;
+    bool thread_started;
     pthread_t thread_id;
 } Alien;
 
@@ -33,6 +34,7 @@ typedef struct {
     Position pos;
     CannonAngle trajectory;
     bool active;
+    bool thread_started;
     pthread_t thread_id;
 } Rocket;
 
@@ -53,9 +55,8 @@ typedef struct {
     unsigned int alien_speed_ms;
 
     Alien pool_aliens[MAX_ALIENS_CONCURRENT];
-
+    Rocket pool_rockets[MAX_ROCKETS];
     pthread_mutex_t state_mutex;
-    sem_t battery_sem;
 } GameState;
 
 extern GameState game;

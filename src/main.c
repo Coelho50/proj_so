@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <ncurses.h>
 #include "../include/common.h"
 #include "../include/config.h"
 #include "../include/main.h"
@@ -37,10 +38,14 @@ void init_game(int difficulty_choice) {
 
     for (int i = 0; i < MAX_ALIENS_CONCURRENT; i++) {
         game.pool_aliens[i].active = false;
+        game.pool_aliens[i].thread_started = false;
+    }
+    for (int i = 0; i < MAX_ROCKETS; i++) {
+        game.pool_rockets[i].active = false;
+        game.pool_rockets[i].thread_started = false;
     }
 
     pthread_mutex_init(&game.state_mutex, NULL);
-    sem_init(&game.battery_sem, 0, game.max_launchers);
 }
 
 void check_victory_conditions(void) {
@@ -48,10 +53,12 @@ void check_victory_conditions(void) {
     
     int win_threshold = (game.total_aliens + 1) / 2; 
 
+    int lost_threshold = (game.total_aliens) / 2 + 1; 
+
     if (game.aliens_destroyed >= win_threshold) {
         game.game_over = true;
         game.player_won = true;
-    } else if (game.aliens_escaped >= win_threshold) {
+    } else if (game.aliens_escaped >= lost_threshold) {
         game.game_over = true;
         game.player_won = false;
     }
@@ -60,51 +67,45 @@ void check_victory_conditions(void) {
 }
 
 void cleanup_game(void) {
-    for (int i = 0; i < MAX_ALIENS_CONCURRENT; i++) {
-        if (game.pool_aliens[i].active) {
+    for (int i = 0; i < MAX_ALIENS_CONCURRENT; i++)
+        if (game.pool_aliens[i].thread_started)
             pthread_join(game.pool_aliens[i].thread_id, NULL);
-        }
-    }
+
+    for (int i = 0; i < MAX_ROCKETS; i++)
+        if (game.pool_rockets[i].thread_started)
+            pthread_join(game.pool_rockets[i].thread_id, NULL);
+
     pthread_mutex_destroy(&game.state_mutex);
-    sem_destroy(&game.battery_sem);
 }
 
 int main(void) {
     int choice = 1;
-    pthread_t input_tid;
     pthread_t reloader_tid;
     unsigned int spawn_timer = 0;
-    
+
     srand(time(NULL));
-    
+
     printf("Selecione a dificuldade:\n1 - Facil\n2 - Medio\n3 - Dificil\nEscolha: ");
     if (scanf("%d", &choice) != 1) {
         choice = 1;
     }
-    
+
     init_game(choice);
     init_render();
-    
-    if (pthread_create(&input_tid, NULL, input_thread_fn, NULL) != 0) {
-        cleanup_render();
-        cleanup_game();
-        fprintf(stderr, "Erro ao criar a thread de input.\n");
-        return 1;
-    }
 
     if (pthread_create(&reloader_tid, NULL, reloader_thread_fn, NULL) != 0) {
-        game.game_over = true;
-        pthread_join(input_tid, NULL);
         cleanup_render();
         cleanup_game();
         fprintf(stderr, "Erro ao criar a thread do carregador.\n");
         return 1;
     }
-    
+
     while (!game.game_over) {
         check_victory_conditions();
         draw_game();
-        usleep(33333);
+        int ch = getch();
+        if (ch != ERR)
+            process_input(ch);
         spawn_timer += 33;
 
         if (spawn_timer >= 1500) {
@@ -115,13 +116,14 @@ int main(void) {
                 for (int i = 0; i < MAX_ALIENS_CONCURRENT; i++) {
                     if (!game.pool_aliens[i].active) {
                         game.pool_aliens[i].active = true;
-                        game.pool_aliens[i].pos.y = 1;
+                        game.pool_aliens[i].pos.y = 2;
                         game.pool_aliens[i].pos.x = 1 + (rand() % (SCREEN_WIDTH - 2));
                         game.total_aliens_spawned++;
 
                         int* arg = malloc(sizeof(int));
                         *arg = i;
                         pthread_create(&game.pool_aliens[i].thread_id, NULL, alien_thread_fn, arg);
+                        game.pool_aliens[i].thread_started = true;
                         break;
                     }
                 }
@@ -130,7 +132,6 @@ int main(void) {
         }
     }
     
-    pthread_join(input_tid, NULL);
     pthread_join(reloader_tid, NULL);
     cleanup_render();
     
